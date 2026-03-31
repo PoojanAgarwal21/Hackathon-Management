@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HackEase - Evaluate Projects</title>
+     <link rel="stylesheet" href="evaluate_project.css" />
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="judge_panel.html" class="logo">HackEase</a>
+            <ul class="nav-links">
+                <li><a href="judge_panel.html" class="active">Dashboard</a></li>
+                <li><a href="evaluate_projects.html">Evaluate Projects</a></li>
+                <li><a href="result.html">Results</a></li>
+                <li><a href="profile.html">Profile</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Header Section -->
+    <div class="header-section">
+        <div class="hackathon-info">
+            <div>
+                <h1 class="hackathon-title" id="hackathonTitle">Loading...</h1>
+                <p style="color: #718096; margin-top: 0.5rem;" id="hackathonSubtitle">Loading...</p>
+            </div>
+            <div class="evaluation-stats">
+                <div class="stat-item">
+                    <div class="stat-number" id="evaluatedCount">0</div>
+                    <div>Evaluated</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number" id="pendingCount">0</div>
+                    <div>Pending</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number" id="totalCount">0</div>
+                    <div>Total Projects</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="filter-section">
+            <div class="search-box">
+                <span class="search-icon">🔍</span>
+                <input type="text" placeholder="Search projects by name, team, or technology..." id="searchInput">
+            </div>
+            <div class="filter-buttons">
+                <button class="filter-btn active" data-filter="all">All Projects</button>
+                <button class="filter-btn" data-filter="pending">Pending</button>
+                <button class="filter-btn" data-filter="evaluated">Evaluated</button>
+                <button class="filter-btn" data-filter="selected">Selected</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Projects Section -->
+    <div class="projects-section">
+        <div class="projects-grid" id="projectsGrid">
+            <!-- Projects will be populated by JavaScript -->
+        </div>
+    </div>
+
+    <!-- Evaluation Modal -->
+    <div id="evaluationModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="close">&times;</span>
+                <h2 class="modal-title" id="modalTitle">Evaluate Project</h2>
+                <p id="modalSubtitle"></p>
+                <p id="roundInfo" style="color: #718096; font-size: 0.9rem;"></p>
+            </div>
+            <div class="modal-body">
+                <div class="criteria-section">
+                    <h3 class="criteria-title" id="criteriaTitle">Evaluation Criteria</h3>
+                    <div id="criteriaContainer">
+                        <!-- Criteria will be populated by JavaScript -->
+                    </div>
+                    
+                    <div class="total-score" id="totalScoreSection" style="display: none;">
+                        <div>Total Score</div>
+                        <div class="total-score-value" id="totalScore">0/100</div>
+                    </div>
+                </div>
+
+                <div class="comments-section">
+                    <h3 class="criteria-title">Feedback & Comments</h3>
+                    <textarea class="comments-textarea" placeholder="Provide detailed feedback for the team about their project, strengths, areas for improvement, and suggestions..." id="feedbackComments"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="footer-btn btn-cancel" onclick="closeModal()">Cancel</button>
+                <button class="footer-btn btn-submit" onclick="submitEvaluation()">Submit Evaluation</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let currentSubmission = null;
+        let currentHackathon = null;
+        let currentScores = {};
+        let currentRound = 1;
+        let totalRounds = 1;
+        let projects = [];
+
+        // Evaluation criteria for final round
+        const evaluationCriteria = [
+            {
+                name: "Innovation & Creativity",
+                description: "How novel and creative is the solution? Does it bring new ideas or unique approaches?",
+                maxScore: 25
+            },
+            {
+                name: "Technical Implementation",
+                description: "Quality of code, architecture, and technical execution. Use of appropriate technologies.",
+                maxScore: 25
+            },
+            {
+                name: "Business Impact & Feasibility",
+                description: "Potential real-world application, market viability, and practical implementation possibilities.",
+                maxScore: 25
+            },
+            {
+                name: "Presentation & Demo",
+                description: "Quality of presentation, demo effectiveness, and communication of the solution.",
+                maxScore: 25
+            }
+        ];
+
+        // Get submissionId from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const submissionId = urlParams.get('submissionId');
+
+        // Initialize page
+        async function initializePage() {
+        if (submissionId) {
+                await loadSingleSubmission();
+            } else {
+                // Load all submissions for the judge
+                await loadAllSubmissions();
+            }
+        }
+
+        async function loadSingleSubmission() {
+            try {
+                const response = await fetch(`http://localhost:5000/api/judge/submission/${submissionId}`, {
+            headers: {
+              Authorization: "Bearer " + localStorage.getItem("token")
+                    }
+                });
+                
+                if (!response.ok) throw new Error('Failed to fetch submission');
+                
+                const submission = await response.json();
+                
+                // Load hackathon details
+                const hackathonResponse = await fetch(`http://localhost:5000/api/hackathon/${submission.hackathonId}`);
+                const hackathon = await hackathonResponse.json();
+                
+                currentHackathon = hackathon;
+                currentRound = submission.roundNumber;
+                totalRounds = hackathon.rounds ? hackathon.rounds.length : 1;
+                
+                // Update page header
+                document.getElementById('hackathonTitle').textContent = hackathon.title;
+                document.getElementById('hackathonSubtitle').textContent = 
+                    `${hackathon.organizerName || 'Organizer'} • Round ${currentRound} of ${totalRounds}`;
+                
+                // Create project object
+                const team = submission.teamId || {};
+                projects = [{
+                    id: submission._id,
+                    title: submission.projectTitle || (team.projectTitle || "Project Submission"),
+                    team: team.teamName || "Team",
+                    leader: team.leaderName || "",
+                    leaderEmail: team.leaderEmail || "",
+                    members: team.teamMembers ? team.teamMembers.length : 1,
+                    teamMembers: team.teamMembers || [],
+                    category: submission.category || "N/A",
+                    description: submission.notes || "",
+                    techStack: submission.techStack || [],
+                    demoLink: submission.submissionLink || team.projectLink || "",
+                    githubLink: submission.githubLink || "",
+                    status: submission.evaluated ? "evaluated" : "pending",
+                    score: submission.finalScore || 0,
+                    submissionTime: new Date(submission.submittedAt).toLocaleString(),
+                    selectedForNext: submission.selectedForNext || false,
+                    evaluations: submission.evaluations || [] // Added evaluations for pre-filling
+                }];
+                
+                populateProjects();
+                updateStats();
+                
+            } catch (error) {
+                console.error('Error loading submission:', error);
+                alert('Error loading submission details');
+            }
+        }
+
+        async function loadAllSubmissions() {
+            try {
+                // Get assigned hackathons first
+                const hackathonsResponse = await fetch("http://localhost:5000/api/judge/assigned", {
+                    headers: {
+                        Authorization: "Bearer " + localStorage.getItem("token")
+                    }
+                });
+                
+                const hackathons = await hackathonsResponse.json();
+                
+                if (hackathons.length === 0) {
+                    document.getElementById('hackathonTitle').textContent = "No Hackathons Assigned";
+                    document.getElementById('projectsGrid').innerHTML = "<p>No hackathons assigned to you yet.</p>";
+                    return;
+                }
+                
+                // For now, load submissions from the first hackathon
+                const firstHackathon = hackathons[0];
+                currentHackathon = firstHackathon;
+                totalRounds = firstHackathon.rounds ? firstHackathon.rounds.length : 1;
+                
+                document.getElementById('hackathonTitle').textContent = firstHackathon.title;
+                document.getElementById('hackathonSubtitle').textContent = 
+                    `${firstHackathon.organizerName || 'Organizer'} • ${totalRounds} Rounds`;
+                
+                // Load submissions
+                const submissionsResponse = await fetch(`http://localhost:5000/api/judge/submissions/${firstHackathon._id}`, {
+                    headers: {
+                        Authorization: "Bearer " + localStorage.getItem("token")
+                    }
+                });
+                
+                const submissions = await submissionsResponse.json();
+                
+                projects = submissions.map(sub => {
+              const team = sub.teamId || {};
+                    return {
+                id: sub._id,
+                title: sub.projectTitle || (team.projectTitle || "Project Submission"),
+                team: team.teamName || "Team",
+                leader: team.leaderName || "",
+                leaderEmail: team.leaderEmail || "",
+                members: team.teamMembers ? team.teamMembers.length : 1,
+                teamMembers: team.teamMembers || [],
+                category: sub.category || "N/A",
+                description: sub.notes || "",
+                techStack: sub.techStack || [],
+                demoLink: sub.submissionLink || team.projectLink || "",
+                githubLink: sub.githubLink || "",
+                status: sub.evaluated ? "evaluated" : "pending",
+                        score: sub.finalScore || 0,
+                        submissionTime: new Date(sub.submittedAt).toLocaleString(),
+                        selectedForNext: sub.selectedForNext || false,
+                        roundNumber: sub.roundNumber,
+                        evaluations: sub.evaluations || [] // Added evaluations for pre-filling
+                    };
+                });
+                
+                populateProjects();
+                updateStats();
+                
+            } catch (error) {
+                console.error('Error loading submissions:', error);
+                alert('Error loading submissions');
+            }
+        }
+
+        // Populate projects
+        function populateProjects() {
+            const grid = document.getElementById('projectsGrid');
+            grid.innerHTML = '';
+            
+            projects.forEach(project => {
+                const card = document.createElement('div');
+                card.className = 'project-card';
+                card.dataset.status = project.status;
+                card.dataset.category = project.category.toLowerCase();
+                
+                let statusClass = '';
+                let statusText = '';
+                
+                if (project.selectedForNext) {
+                    statusClass = 'status-selected';
+                    statusText = 'Selected for Next Round';
+                } else if (project.status === 'pending') {
+                        statusClass = 'status-pending';
+                        statusText = 'Pending Review';
+                } else if (project.status === 'evaluated') {
+                    if (currentRound === totalRounds) {
+                        statusClass = 'status-evaluated';
+                        statusText = `Final Score: ${project.score}/100`;
+                    } else {
+                        statusClass = 'status-evaluated';
+                        statusText = 'Evaluated (Not Selected)';
+                    }
+                }
+                
+                card.innerHTML = `
+                    <div class="project-header">
+                        <div class="evaluation-status ${statusClass}">${statusText}</div>
+                        <div class="project-title">${project.title}</div>
+                        <div class="team-info">${project.team} • ${project.members} members</div>
+                        <div class="leader-info"><b>Leader:</b> ${project.leader} (${project.leaderEmail})</div>
+                        ${project.roundNumber ? `<div class="round-info">Round ${project.roundNumber}</div>` : ''}
+                    </div>
+                    <div class="project-body">
+                        <p class="project-description">${project.description}</p>
+                        
+                        <div class="project-details">
+                            <div class="detail-item">
+                                <div class="detail-label">Category</div>
+                                <div class="detail-value">${project.category}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Submitted</div>
+                                <div class="detail-value">${project.submissionTime}</div>
+                            </div>
+                        </div>
+                        
+                        <div class="tech-stack">
+                            <div class="detail-label">Tech Stack:</div>
+                            <div class="tech-tags">
+                                ${project.techStack.map(tech => `<span class="tech-tag">${tech}</span>`).join('')}
+                            </div>
+                        </div>
+                        
+                        <div class="team-members">
+                            <div class="detail-label">Team Members:</div>
+                            <ul>
+                                ${project.teamMembers && project.teamMembers.length ? project.teamMembers.map(m => `<li>${m.name} (${m.email}, ${m.gender})</li>`).join('') : '<li>None</li>'}
+                            </ul>
+                        </div>
+                        
+                        <div class="project-actions">
+                            ${project.status === 'pending' ? 
+                                `<button class="action-btn btn-evaluate" onclick="openEvaluationModal('${project.id}')">Start Evaluation</button>` :
+                                project.status === 'evaluated' ?
+                                `<button class="action-btn btn-edit" onclick="openEvaluationModal('${project.id}')">Edit Evaluation</button>` :
+                                `<button class="action-btn btn-evaluate" onclick="openEvaluationModal('${project.id}')">Continue Evaluation</button>`
+                            }
+                            ${project.demoLink ? `<a href="${project.demoLink}" target="_blank" class="action-btn btn-view">View Demo</a>` : ''}
+                            ${project.githubLink ? `<a href="${project.githubLink}" target="_blank" class="action-btn btn-view">View Code</a>` : ''}
+                        </div>
+                    </div>
+                `;
+                
+                grid.appendChild(card);
+            });
+        }
+
+        function updateStats() {
+            const evaluated = projects.filter(p => p.status === 'evaluated').length;
+            const pending = projects.filter(p => p.status === 'pending').length;
+            const selected = projects.filter(p => p.selectedForNext).length;
+            
+            document.getElementById('evaluatedCount').textContent = evaluated;
+            document.getElementById('pendingCount').textContent = pending;
+            document.getElementById('totalCount').textContent = projects.length;
+        }
+
+        // Filter functionality
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                
+                const filter = this.dataset.filter;
+                const cards = document.querySelectorAll('.project-card');
+                
+                cards.forEach(card => {
+                    if (filter === 'all') {
+                        card.style.display = 'block';
+                    } else if (filter === 'selected') {
+                        card.style.display = card.querySelector('.evaluation-status').textContent.includes('Selected') ? 'block' : 'none';
+                    } else {
+                        card.style.display = card.dataset.status === filter ? 'block' : 'none';
+                    }
+                });
+            });
+        });
+
+        // Search functionality
+        document.getElementById('searchInput').addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            const cards = document.querySelectorAll('.project-card');
+            
+            cards.forEach(card => {
+                const title = card.querySelector('.project-title').textContent.toLowerCase();
+                const team = card.querySelector('.team-info').textContent.toLowerCase();
+                const description = card.querySelector('.project-description').textContent.toLowerCase();
+                const techStack = card.querySelector('.tech-tags').textContent.toLowerCase();
+                
+                if (title.includes(searchTerm) || team.includes(searchTerm) || 
+                    description.includes(searchTerm) || techStack.includes(searchTerm)) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        });
+
+        // Open evaluation modal
+        async function openEvaluationModal(projectId) {
+            currentSubmission = projects.find(p => p.id === projectId);
+            const modal = document.getElementById('evaluationModal');
+            
+            document.getElementById('modalTitle').textContent = currentSubmission.title;
+            document.getElementById('modalSubtitle').textContent = `${currentSubmission.team} • ${currentSubmission.category}`;
+            document.getElementById('roundInfo').textContent = `Round ${currentSubmission.roundNumber || currentRound} of ${totalRounds}`;
+            
+            // Populate criteria based on round
+            const criteriaContainer = document.getElementById('criteriaContainer');
+            criteriaContainer.innerHTML = '';
+            currentScores = {};
+            
+            // Check if this submission has existing evaluation
+            const existingEvaluation = currentSubmission.evaluations && currentSubmission.evaluations.length > 0 
+                ? currentSubmission.evaluations[0] 
+                : null;
+            
+            if (currentSubmission.roundNumber === totalRounds) {
+                // Final round: Detailed scoring
+                document.getElementById('criteriaTitle').textContent = 'Final Round Evaluation';
+                evaluationCriteria.forEach((criteria, index) => {
+                    const criteriaDiv = document.createElement('div');
+                    criteriaDiv.className = 'criteria-item';
+                    const existingScore = existingEvaluation ? Math.floor(existingEvaluation.score / 4) : 0;
+                    criteriaDiv.innerHTML = `
+                        <div class="criteria-name">${criteria.name}</div>
+                        <div class="criteria-description">${criteria.description}</div>
+                        <div class="score-input">
+                            <input type="range" class="score-slider" min="0" max="${criteria.maxScore}" value="${existingScore}" 
+                                   id="score-${index}" onchange="updateScore(${index}, this.value, ${criteria.maxScore})">
+                            <div class="score-display" id="display-${index}">${existingScore}/${criteria.maxScore}</div>
+                        </div>
+                    `;
+                    criteriaContainer.appendChild(criteriaDiv);
+                    currentScores[index] = existingScore;
+                });
+                document.getElementById('totalScoreSection').style.display = 'block';
+                
+                // Pre-fill feedback if editing
+                if (existingEvaluation) {
+                    document.getElementById('feedbackComments').value = existingEvaluation.feedback || '';
+                }
+            } else {
+                // Selection rounds: Accept/Reject with optional scoring
+                document.getElementById('criteriaTitle').textContent = 'Selection Decision';
+                criteriaContainer.innerHTML = `
+                    <div style='text-align:center; padding: 1rem;'>
+                        <p style="margin-bottom: 1rem; color: #4a5568;">Select whether this team should proceed to the next round:</p>
+                        <div style="display: flex; gap: 1rem; justify-content: center; margin-bottom: 1rem;">
+                            <button class='action-btn btn-evaluate' style="background: linear-gradient(135deg, #48bb78, #38a169);" onclick='submitAcceptReject(true)'>✅ Accept for Next Round</button>
+                            <button class='action-btn btn-evaluate' style="background: linear-gradient(135deg, #f56565, #e53e3e);" onclick='submitAcceptReject(false)'>❌ Reject</button>
+                        </div>
+                        <div style="border-top: 1px solid #e2e8f0; padding-top: 1rem; margin-top: 1rem;">
+                            <p style="margin-bottom: 0.5rem; color: #4a5568; font-weight: 600;">Optional: Provide a score (0-100) for this round:</p>
+                            <div style="display: flex; align-items: center; gap: 1rem; justify-content: center;">
+                                <input type="range" min="0" max="100" value="${existingEvaluation ? existingEvaluation.score : 0}" 
+                                       id="selectionScore" style="flex: 1; max-width: 200px;">
+                                <span id="selectionScoreDisplay" style="font-weight: 600; color: #2d3748; min-width: 60px;">
+                                    ${existingEvaluation ? existingEvaluation.score : 0}/100
+                                </span>
+                            </div>
+                        </div>
+                    </div>`;
+                document.getElementById('totalScoreSection').style.display = 'none';
+                
+                // Pre-fill feedback if editing
+                if (existingEvaluation) {
+                    document.getElementById('feedbackComments').value = existingEvaluation.feedback || '';
+                }
+                
+                // Add event listener for selection score
+                setTimeout(() => {
+                    const scoreSlider = document.getElementById('selectionScore');
+                    const scoreDisplay = document.getElementById('selectionScoreDisplay');
+                    if (scoreSlider && scoreDisplay) {
+                        scoreSlider.addEventListener('input', function() {
+                            scoreDisplay.textContent = this.value + '/100';
+                        });
+                    }
+                }, 100);
+            }
+            
+            updateTotalScore();
+            modal.style.display = 'block';
+        }
+
+        // Update individual score
+        function updateScore(criteriaIndex, value, maxScore) {
+            currentScores[criteriaIndex] = parseInt(value);
+            document.getElementById(`display-${criteriaIndex}`).textContent = `${value}/${maxScore}`;
+            updateTotalScore();
+        }
+
+        // Update total score
+        function updateTotalScore() {
+            const total = Object.values(currentScores).reduce((sum, score) => sum + score, 0);
+            document.getElementById('totalScore').textContent = `${total}/100`;
+        }
+
+        // Close modal
+        function closeModal() {
+            document.getElementById('evaluationModal').style.display = 'none';
+        }
+
+        // Submit accept/reject decision
+        async function submitAcceptReject(selectedForNext) {
+            const feedback = document.getElementById('feedbackComments').value;
+            if (feedback.trim() === '') {
+                alert('Please provide feedback comments before submitting.');
+                return;
+            }
+
+            // Get optional score for selection rounds
+            const scoreSlider = document.getElementById('selectionScore');
+            const score = scoreSlider ? parseInt(scoreSlider.value) : (selectedForNext ? 1 : 0);
+
+            try {
+                const response = await fetch('http://localhost:5000/api/judge/evaluate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: 'Bearer ' + localStorage.getItem('token')
+                },
+                body: JSON.stringify({
+                        submissionId: currentSubmission.id,
+                        round: currentSubmission.roundNumber || currentRound,
+                        score: score,
+                        feedback: feedback,
+                        selectedForNext: selectedForNext
+                    })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || 'Failed to submit evaluation');
+                }
+
+                const result = await response.json();
+                alert(result.message);
+                closeModal();
+                
+                // Reload data
+                if (submissionId) {
+                    await loadSingleSubmission();
+                } else {
+                    await loadAllSubmissions();
+                }
+                
+            } catch (error) {
+                console.error('Error submitting evaluation:', error);
+                alert('Error submitting evaluation: ' + error.message);
+            }
+        }
+
+        // Submit final round evaluation
+        async function submitEvaluation() {
+            if (currentSubmission.roundNumber !== totalRounds) {
+                alert('This is not the final round. Use Accept/Reject buttons for selection rounds.');
+                return;
+            }
+
+            const feedback = document.getElementById('feedbackComments').value;
+            const totalScore = Object.values(currentScores).reduce((sum, score) => sum + score, 0);
+            
+            if (feedback.trim() === '') {
+                alert('Please provide feedback comments before submitting.');
+                return;
+            }
+
+            if (totalScore === 0) {
+                alert('Please provide scores for at least one criteria.');
+                return;
+            }
+
+            try {
+                const response = await fetch('http://localhost:5000/api/judge/evaluate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: 'Bearer ' + localStorage.getItem('token')
+                },
+                body: JSON.stringify({
+                        submissionId: currentSubmission.id,
+                        round: currentSubmission.roundNumber || currentRound,
+                    score: totalScore,
+                        feedback: feedback,
+                        selectedForNext: false // Final round, no next round
+                    })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || 'Failed to submit evaluation');
+                }
+
+                const result = await response.json();
+                alert('Final evaluation submitted successfully!');
+                closeModal();
+                
+                // Reload data
+                if (submissionId) {
+                    await loadSingleSubmission();
+                } else {
+                    await loadAllSubmissions();
+                }
+                
+            } catch (error) {
+                console.error('Error submitting evaluation:', error);
+                alert('Error submitting evaluation: ' + error.message);
+            }
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('evaluationModal');
+            if (event.target == modal) {
+                closeModal();
+            }
+        }
+
+        // Close modal with X button
+        document.querySelector('.close').onclick = closeModal;
+
+        // Initialize the page
+        document.addEventListener('DOMContentLoaded', initializePage);
+    </script>
+</body>
+</html>

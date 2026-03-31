@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Hackathon Details & Submissions</title>
+  <link rel="stylesheet" href="JudgeHackathonDetails.css" />
+</head>
+<body>
+  <div class="container">
+   <h1 id="hackathonTitle">Loading...</h1>
+<p id="hackathonDesc"></p>
+
+<div class="hackathon-info">
+  <p><strong>Location:</strong> <span id="hackathonLocation"></span></p>
+  <p><strong>Registration:</strong> <span id="hackathonReg"></span></p>
+  <p><strong>Prizes:</strong>
+    <ul id="hackathonPrizes"></ul>
+  </p>
+  <p><strong>Problems:</strong>
+    <ul id="hackathonProblems"></ul>
+  </p>
+</div>
+
+<h2>Rounds</h2>
+<div id="roundsList">Loading rounds...</div>
+
+<h2>Submissions by Round</h2>
+<div id="submissionsList">Loading submissions...</div>
+
+  <script>
+    async function getHackathonDetails(id) {
+      const res = await fetch(`http://localhost:5000/api/hackathon/${id}`);
+      return res.json();
+    }
+
+    async function getSubmissions(id) {
+      const res = await fetch(`http://localhost:5000/api/judge/submissions/${id}`, {
+        headers: {
+          Authorization: "Bearer " + localStorage.getItem("token")
+        }
+      });
+      return res.json();
+    }
+
+    async function loadPage() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const hackathonId = urlParams.get("id");
+
+  if (!hackathonId) {
+    document.getElementById("hackathonTitle").innerText = "Hackathon not found";
+    return;
+  }
+
+  try {
+    const [hackathon, submissions] = await Promise.all([
+      getHackathonDetails(hackathonId),
+      getSubmissions(hackathonId)
+    ]);
+
+    // General Info
+    document.getElementById("hackathonTitle").innerText = hackathon.title;
+    document.getElementById("hackathonDesc").innerText = hackathon.description;
+    document.getElementById("hackathonLocation").innerText = hackathon.location;
+    document.getElementById("hackathonReg").innerText = new Date(hackathon.regStart).toLocaleDateString() + " to " + new Date(hackathon.regEnd).toLocaleDateString();
+
+    // Prizes
+    const prizesList = document.getElementById("hackathonPrizes");
+    prizesList.innerHTML = [hackathon.prize1, hackathon.prize2, hackathon.prize3]
+      .filter(Boolean)
+      .map(p => `<li>${p}</li>`).join("");
+
+    // Problems
+    const problemsList = document.getElementById("hackathonProblems");
+    problemsList.innerHTML = hackathon.problem.map(p => `<li>${p}</li>`).join("");
+
+    // Rounds
+    const roundsList = document.getElementById("roundsList");
+    if (hackathon.rounds.length === 0) {
+      roundsList.innerHTML = "<p>No rounds added yet.</p>";
+    } else {
+      roundsList.innerHTML = hackathon.rounds.map((round, index) => `
+        <div class="round-card">
+          <h3>Round ${index + 1}: ${round.name}</h3>
+          <p><strong>Start:</strong> ${new Date(round.start).toLocaleString()}</p>
+          <p><strong>End:</strong> ${new Date(round.end).toLocaleString()}</p>
+          <p><strong>Description:</strong> ${round.description}</p>
+          <p><strong>Guidelines:</strong> ${round.guidelines}</p>
+          ${round.link ? `<a href="${round.link}" target="_blank">Round Link</a>` : ""}
+        </div>
+      `).join("");
+    }
+
+    // Group submissions by round
+    const submissionsByRound = {};
+    submissions.forEach(sub => {
+      const round = sub.roundNumber || 1;
+      if (!submissionsByRound[round]) {
+        submissionsByRound[round] = [];
+      }
+      submissionsByRound[round].push(sub);
+    });
+
+    // Display submissions by round
+    const submissionsDiv = document.getElementById("submissionsList");
+    submissionsDiv.innerHTML = "";
+
+    const now = new Date();
+    const rounds = hackathon.rounds;
+    const totalRounds = rounds.length;
+
+    if (submissions.length === 0) {
+      submissionsDiv.innerHTML = "<p>No submissions yet.</p>";
+    } else {
+      for (let i = 1; i <= totalRounds; i++) {
+        const round = rounds[i - 1];
+        const roundStart = new Date(round.start);
+        const roundEnd = new Date(round.end);
+        const isLocked = now < roundStart;
+        const roundSubmissions = submissionsByRound[i] || [];
+        const roundDiv = document.createElement("div");
+        roundDiv.className = "round-submissions";
+        if (isLocked) {
+          roundDiv.innerHTML = `<h3>Round ${i} (${round.name}) <span style='color:#e53e3e;font-size:1rem;margin-left:1rem;'>🔒 Locked</span></h3><p style='color:#718096;'>This round will open on <b>${roundStart.toLocaleString()}</b>. Submissions and evaluations are locked until then.</p>`;
+        } else {
+          roundDiv.innerHTML = `<h3>Round ${i} Submissions (${roundSubmissions.length})</h3>`;
+          roundSubmissions.forEach(sub => {
+            const team = sub.teamId || {};
+            const subDiv = document.createElement("div");
+            subDiv.classList.add("submission-card");
+            let statusBadge = '';
+            if (sub.evaluated) {
+              if (sub.selectedForNext) {
+                statusBadge = '<span class="status-badge selected">Selected for Next Round</span>';
+              } else if (i == hackathon.rounds.length) {
+                statusBadge = `<span class="status-badge evaluated">Final Score: ${sub.finalScore || 0}/100</span>`;
+              } else {
+                statusBadge = '<span class="status-badge evaluated">Evaluated (Not Selected)</span>';
+              }
+            } else {
+              statusBadge = '<span class="status-badge pending">Pending Evaluation</span>';
+            }
+            subDiv.innerHTML = `
+              <div class="submission-header">
+                <h4>${sub.projectTitle || 'Untitled Project'}</h4>
+                ${statusBadge}
+              </div>
+              <p><strong>Team:</strong> ${team.teamName || 'Unknown Team'}</p>
+              <p><strong>Leader:</strong> ${team.leaderName || 'Unknown'} (${team.leaderEmail || 'No email'})</p>
+              ${sub.category ? `<p><strong>Category:</strong> ${sub.category}</p>` : ''}
+              ${sub.techStack && sub.techStack.length > 0 ? `<p><strong>Tech Stack:</strong> ${sub.techStack.join(', ')}</p>` : ''}
+              ${sub.notes ? `<p><strong>Notes:</strong> ${sub.notes}</p>` : ''}
+              <div class="submission-actions">
+                ${sub.submissionLink ? `<a href="${sub.submissionLink}" target="_blank" class="action-btn">View Demo</a>` : ''}
+                ${sub.githubLink ? `<a href="${sub.githubLink}" target="_blank" class="action-btn">View Code</a>` : ''}
+                <button onclick="redirectToEvaluate('${sub._id}')" class="action-btn evaluate-btn">
+                  ${sub.evaluated ? 'Edit Evaluation' : 'Evaluate'}
+                </button>
+              </div>
+            `;
+            roundDiv.appendChild(subDiv);
+          });
+        }
+        submissionsDiv.appendChild(roundDiv);
+      }
+    }
+
+  } catch (err) {
+    console.error("Error loading details:", err);
+    document.getElementById("hackathonTitle").innerText = "Error loading hackathon details.";
+  }
+}
+
+function redirectToEvaluate(submissionId) {
+  window.location.href = `evaluate_projects.html?submissionId=${submissionId}`;
+}
+
+    document.addEventListener("DOMContentLoaded", loadPage);
+  </script>
+</body>
+</html>

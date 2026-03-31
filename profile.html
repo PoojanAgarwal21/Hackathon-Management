@@ -1,0 +1,1096 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HackEase - Participant Profile</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            padding: 1rem 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+
+        .logo-text {
+            font-size: 1.8rem;
+            font-weight: bold;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header-buttons {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .btn {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            font-size: 0.9rem;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+            color: white;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #00b894, #00a085);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #74b9ff, #0984e3);
+            color: white;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .profile-grid {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .profile-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            padding: 2rem;
+            position: sticky;
+            top: 120px;
+            height: fit-content;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .profile-photo-container {
+            text-align: center;
+            margin-bottom: 2rem;
+            position: relative;
+        }
+
+        .profile-photo {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 15px 35px rgba(102, 126, 234, 0.4);
+            border: 4px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .profile-photo img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .profile-photo-placeholder {
+            font-size: 4rem;
+            color: white;
+        }
+
+        .photo-upload {
+            position: absolute;
+            bottom: 5px;
+            right: calc(50% - 85px);
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-radius: 50%;
+            padding: 0.75rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .photo-upload:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .photo-upload input {
+            display: none;
+        }
+
+        .profile-name {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #2d3748;
+            margin-top: 1rem;
+            text-align: center;
+        }
+
+        .profile-role {
+            font-size: 1.2rem;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-top: 0.5rem;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .contact-info {
+            margin-top: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .contact-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.75rem;
+            background: rgba(102, 126, 234, 0.1);
+            border-radius: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .contact-item:hover {
+            background: rgba(102, 126, 234, 0.2);
+            transform: translateX(5px);
+        }
+
+        .contact-icon {
+            width: 20px;
+            height: 20px;
+            color: #667eea;
+        }
+
+        .section {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            padding: 2rem;
+            margin-bottom: 2rem;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .section:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
+        }
+
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #2d3748;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 2px solid rgba(102, 126, 234, 0.2);
+        }
+
+        .section-icon {
+            width: 24px;
+            height: 24px;
+            color: #667eea;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            display: block;
+            font-weight: 600;
+            color: #4a5568;
+            margin-bottom: 0.75rem;
+            font-size: 0.95rem;
+        }
+
+        .form-input, .form-textarea {
+            width: 100%;
+            padding: 1rem;
+            border: 2px solid rgba(102, 126, 234, 0.2);
+            border-radius: 12px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.8);
+        }
+
+        .form-input:focus, .form-textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            background: white;
+        }
+
+        .form-textarea {
+            resize: vertical;
+            min-height: 120px;
+        }
+
+        .skills-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+        }
+
+        .skill-tag {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .skill-tag:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+
+        .array-input-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .array-input-row {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .remove-btn {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 0.5rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            min-width: 40px;
+        }
+
+        .remove-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 15px rgba(255, 107, 107, 0.4);
+        }
+
+        .add-btn {
+            color: #667eea;
+            background: rgba(102, 126, 234, 0.1);
+            border: 2px dashed #667eea;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9rem;
+            padding: 0.75rem 1.5rem;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .add-btn:hover {
+            background: rgba(102, 126, 234, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .social-link {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .social-link:hover {
+            color: #764ba2;
+            text-decoration: underline;
+        }
+
+        .bio-text {
+            line-height: 1.7;
+            color: #4a5568;
+            font-size: 1.1rem;
+        }
+
+        .info-value {
+            color: #2d3748;
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        /* Animations */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .section {
+            animation: fadeInUp 0.6s ease-out;
+        }
+
+        .profile-card {
+            animation: fadeInUp 0.8s ease-out;
+        }
+
+        /* Mobile Responsiveness */
+        @media (max-width: 768px) {
+            .profile-grid {
+                grid-template-columns: 1fr;
+                gap: 1.5rem;
+            }
+            
+            .grid-2 {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+            
+            .header-content {
+                flex-direction: column;
+                gap: 1rem;
+                text-align: center;
+            }
+            
+            .header-buttons {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+            
+            .profile-card {
+                position: static;
+                margin-bottom: 1rem;
+            }
+
+            .container {
+                padding: 1rem;
+            }
+
+            .profile-photo {
+                width: 120px;
+                height: 120px;
+            }
+
+            .photo-upload {
+                right: calc(50% - 70px);
+            }
+
+            .section {
+                padding: 1.5rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .btn {
+                padding: 0.5rem 1rem;
+                font-size: 0.8rem;
+            }
+
+            .logo-text {
+                font-size: 1.4rem;
+            }
+
+            .profile-name {
+                font-size: 1.5rem;
+            }
+
+            .section-title {
+                font-size: 1.2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="header-content">
+            <div class="logo">
+                <div class="logo-icon">
+                    H
+                </div>
+                <div class="logo-text">HackEase</div>
+            </div>
+            <div class="header-buttons">
+                <a href="participant.html" class="btn btn-secondary">
+                    <span>🏠</span>
+                    <span>Back to Dashboard</span>
+                </a>
+                <button id="editBtn" class="btn btn-primary">
+                    <span>✏️</span>
+                    <span>Edit Profile</span>
+                </button>
+                <button id="saveBtn" class="btn btn-success hidden">
+                    <span>💾</span>
+                    <span>Save</span>
+                </button>
+                <button id="cancelBtn" class="btn btn-secondary hidden">
+                    <span>❌</span>
+                    <span>Cancel</span>
+                </button>
+                <button id="logoutBtn" class="btn btn-danger">
+                    <span>🚪</span>
+                    <span>Logout</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container">
+        <div class="profile-grid">
+            <!-- Left Column - Profile Card -->
+            <div class="profile-card">
+                <!-- Profile Photo -->
+                <div class="profile-photo-container">
+                    <div class="profile-photo">
+                        <img id="profileImage" src="" alt="Profile" class="hidden">
+                        <div id="defaultAvatar" class="profile-photo-placeholder">👤</div>
+                    </div>
+                    <label id="photoUpload" class="photo-upload hidden">
+                        📷
+                        <input type="file" accept="image/*" id="photoInput">
+                    </label>
+                </div>
+
+                <!-- Profile Info -->
+                <div class="profile-name">
+                    <span id="displayName">Priya Sharma</span>
+                    <input type="text" id="editName" class="form-input hidden" value="Priya Sharma">
+                </div>
+                
+                <div class="profile-role">
+                    <span id="displayRole">Computer Science Student</span>
+                    <input type="text" id="editRole" class="form-input hidden" value="Computer Science Student">
+                </div>
+
+                <!-- Contact Info -->
+                <div class="contact-info">
+                    <div class="contact-item">
+                        <span class="contact-icon">📧</span>
+                        <span id="displayEmail">priya.sharma@student.edu</span>
+                        <input type="email" id="editEmail" class="form-input hidden" value="priya.sharma@student.edu">
+                    </div>
+                    <div class="contact-item">
+                        <span class="contact-icon">📱</span>
+                        <span id="displayPhone">+91 98765 43210</span>
+                        <input type="tel" id="editPhone" class="form-input hidden" value="+91 98765 43210">
+                    </div>
+                    <div class="contact-item">
+                        <span class="contact-icon">📍</span>
+                        <span id="displayLocation">Mumbai, India</span>
+                        <input type="text" id="editLocation" class="form-input hidden" value="Mumbai, India">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column - Details -->
+            <div>
+                <!-- Bio Section -->
+                <div class="section">
+                    <h3 class="section-title">
+                        <span class="section-icon">👨‍💻</span>
+                        About Me
+                    </h3>
+                    <div id="displayBio">
+                        <p class="bio-text">Passionate computer science student with a love for problem-solving and innovation. I enjoy participating in hackathons and coding competitions. Currently exploring web development, AI/ML, and mobile app development. Always eager to learn new technologies and collaborate on exciting projects!</p>
+                    </div>
+                    <textarea id="editBio" class="form-textarea hidden">Passionate computer science student with a love for problem-solving and innovation. I enjoy participating in hackathons and coding competitions. Currently exploring web development, AI/ML, and mobile app development. Always eager to learn new technologies and collaborate on exciting projects!</textarea>
+                </div>
+
+                <!-- Educational Info -->
+                <div class="section">
+                    <h3 class="section-title">
+                        <span class="section-icon">🎓</span>
+                        Education & Background
+                    </h3>
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label class="form-label">College/University</label>
+                            <div id="displayCompany" class="info-value">IIT Mumbai</div>
+                            <input type="text" id="editCompany" class="form-input hidden" value="IIT Mumbai">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Year of Study</label>
+                            <div id="displayExperience" class="info-value">3rd Year</div>
+                            <input type="text" id="editExperience" class="form-input hidden" value="3rd Year">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Skills Section -->
+                <div class="section">
+                    <h3 class="section-title">
+                        <span class="section-icon">🛠️</span>
+                        Technical Skills
+                    </h3>
+                    <div id="displaySkills" class="skills-container">
+                        <span class="skill-tag">Python</span>
+                        <span class="skill-tag">JavaScript</span>
+                        <span class="skill-tag">React</span>
+                        <span class="skill-tag">HTML/CSS</span>
+                        <span class="skill-tag">Java</span>
+                        <span class="skill-tag">Git</span>
+                        <span class="skill-tag">Machine Learning</span>
+                        <span class="skill-tag">MySQL</span>
+                    </div>
+                    <div id="editSkills" class="array-input-container hidden">
+                        <!-- Skills inputs will be generated here -->
+                    </div>
+                </div>
+
+                <!-- Social Links -->
+                <div class="section">
+                    <h3 class="section-title">
+                        <span class="section-icon">🔗</span>
+                        Social & Portfolio Links
+                    </h3>
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label class="form-label">GitHub Profile</label>
+                            <div id="displayGithub">
+                                <a href="https://github.com/priyasharma" class="social-link" target="_blank">🐙 github.com/priyasharma</a>
+                            </div>
+                            <input type="url" id="editGithub" class="form-input hidden" value="github.com/priyasharma">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">LinkedIn Profile</label>
+                            <div id="displayLinkedin">
+                                <a href="https://linkedin.com/in/priyasharma" class="social-link" target="_blank">💼 linkedin.com/in/priyasharma</a>
+                            </div>
+                            <input type="url" id="editLinkedin" class="form-input hidden" value="linkedin.com/in/priyasharma">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Profile data structure
+        let profileData = {
+            name: 'Priya Sharma',
+            role: 'Computer Science Student',
+            email: 'priya.sharma@student.edu',
+            phone: '+91 98765 43210',
+            location: 'Mumbai, India',
+            bio: 'Passionate computer science student with a love for problem-solving and innovation. I enjoy participating in hackathons and coding competitions. Currently exploring web development, AI/ML, and mobile app development. Always eager to learn new technologies and collaborate on exciting projects!',
+            company: 'IIT Mumbai',
+            experience: '3rd Year',
+            skills: ['Python', 'JavaScript', 'React', 'HTML/CSS', 'Java', 'Git', 'Machine Learning', 'MySQL'],
+
+            github: 'github.com/priyasharma',
+            linkedin: 'linkedin.com/in/priyasharma',
+            profilePhoto: null
+        };
+
+        // Load data from memory on page load
+function loadProfileData() {
+    try {
+        const savedData = localStorage.getItem('hackease_profile');
+        if (savedData) {
+            const parsedData = JSON.parse(savedData);
+            // Merge saved data with default data to handle any missing fields
+            profileData = { ...profileData, ...parsedData };
+        }
+        updateDisplayData();
+    } catch (error) {
+        console.error('Error loading profile data:', error);
+        // Fall back to default data if there's an error
+        updateDisplayData();
+    }
+}
+
+       // Save data to localStorage
+function saveProfileData() {
+    try {
+        localStorage.setItem('hackease_profile', JSON.stringify(profileData));
+        console.log('Profile data saved to localStorage:', profileData);
+        return true;
+    } catch (error) {
+        console.error('Error saving profile data:', error);
+        alert('Error saving profile data. Please try again.');
+        return false;
+    }
+}
+
+        // Update display elements with current data
+        function updateDisplayData() {
+            // Basic info
+            document.getElementById('displayName').textContent = profileData.name;
+            document.getElementById('displayRole').textContent = profileData.role;
+            document.getElementById('displayEmail').textContent = profileData.email;
+            document.getElementById('displayPhone').textContent = profileData.phone;
+            document.getElementById('displayLocation').textContent = profileData.location;
+            document.getElementById('displayBio').innerHTML = `<p class="bio-text">${profileData.bio}</p>`;
+            document.getElementById('displayCompany').textContent = profileData.company;
+            document.getElementById('displayExperience').textContent = profileData.experience;
+            
+            // Update profile photo
+            const profileImage = document.getElementById('profileImage');
+            const defaultAvatar = document.getElementById('defaultAvatar');
+            if (profileData.profilePhoto) {
+                profileImage.src = profileData.profilePhoto;
+                profileImage.classList.remove('hidden');
+                defaultAvatar.classList.add('hidden');
+            } else {
+                profileImage.classList.add('hidden');
+                defaultAvatar.classList.remove('hidden');
+            }
+
+            // Update skills
+            const skillsContainer = document.getElementById('displaySkills');
+            skillsContainer.innerHTML = '';
+            profileData.skills.forEach(skill => {
+                const skillTag = document.createElement('span');
+                skillTag.className = 'skill-tag';
+                skillTag.textContent = skill;
+                skillsContainer.appendChild(skillTag);
+            });
+
+            // Update social links
+            document.getElementById('displayGithub').innerHTML = 
+                `<a href="https://${profileData.github}" class="social-link" target="_blank">🐙 ${profileData.github}</a>`;
+            document.getElementById('displayLinkedin').innerHTML = 
+                `<a href="https://${profileData.linkedin}" class="social-link" target="_blank">💼 ${profileData.linkedin}</a>`;
+        }
+
+        // Toggle between view and edit modes
+        function toggleEditMode(isEditing) {
+            const editElements = document.querySelectorAll('[id^="edit"]');
+            const displayElements = document.querySelectorAll('[id^="display"]');
+            
+            editElements.forEach(el => {
+                if (isEditing) {
+                    el.classList.remove('hidden');
+                } else {
+                    el.classList.add('hidden');
+                }
+            });
+
+            displayElements.forEach(el => {
+                if (isEditing) {
+                    el.classList.add('hidden');
+                } else {
+                    el.classList.remove('hidden');
+                }
+            });
+
+            // Toggle buttons
+            document.getElementById('editBtn').classList.toggle('hidden', isEditing);
+            document.getElementById('saveBtn').classList.toggle('hidden', !isEditing);
+            document.getElementById('cancelBtn').classList.toggle('hidden', !isEditing);
+            document.getElementById('photoUpload').classList.toggle('hidden', !isEditing);
+
+            if (isEditing) {
+                populateEditFields();
+                generateArrayInputs();
+            }
+        }
+
+        // Populate edit fields with current data
+        function populateEditFields() {
+            document.getElementById('editName').value = profileData.name;
+            document.getElementById('editRole').value = profileData.role;
+            document.getElementById('editEmail').value = profileData.email;
+            document.getElementById('editPhone').value = profileData.phone;
+            document.getElementById('editLocation').value = profileData.location;
+            document.getElementById('editBio').value = profileData.bio;
+            document.getElementById('editCompany').value = profileData.company;
+            document.getElementById('editExperience').value = profileData.experience;
+            document.getElementById('editGithub').value = profileData.github;
+            document.getElementById('editLinkedin').value = profileData.linkedin;
+        }
+
+        // Generate array input fields for skills and achievements
+        function generateArrayInputs() {
+            generateSkillInputs();
+            generateAchievementInputs();
+        }
+
+        function generateSkillInputs() {
+            const container = document.getElementById('editSkills');
+            container.innerHTML = '';
+            
+            profileData.skills.forEach((skill, index) => {
+                const row = document.createElement('div');
+                row.className = 'array-input-row';
+                row.innerHTML = `
+                    <input type="text" class="form-input" value="${skill}" data-skill-index="${index}">
+                    <button type="button" class="remove-btn" onclick="removeSkill(${index})">
+                        ❌
+                    </button>
+                `;
+                container.appendChild(row);
+            });
+
+            const addButton = document.createElement('button');
+            addButton.type = 'button';
+            addButton.className = 'add-btn';
+            addButton.textContent = '+ Add Skill';
+            addButton.onclick = addSkill;
+            container.appendChild(addButton);
+        }
+
+        function generateAchievementInputs() {
+            const container = document.getElementById('editAchievements');
+            container.innerHTML = '';
+            
+            profileData.achievements.forEach((achievement, index) => {
+                const row = document.createElement('div');
+                row.className = 'array-input-row';
+                row.innerHTML = `
+                    <input type="text" class="form-input" value="${achievement}" data-achievement-index="${index}">
+                    <button type="button" class="remove-btn" onclick="removeAchievement(${index})">
+                        ❌
+                    </button>
+                `;
+                container.appendChild(row);
+            });
+
+            const addButton = document.createElement('button');
+            addButton.type = 'button';
+            addButton.className = 'add-btn';
+            addButton.textContent = '+ Add Achievement';
+            addButton.onclick = addAchievement;
+            container.appendChild(addButton);
+        }
+
+        // Array manipulation functions
+        function addSkill() {
+            profileData.skills.push('');
+            generateSkillInputs();
+            // Focus on the new input
+            const inputs = document.querySelectorAll('[data-skill-index]');
+            if (inputs.length > 0) {
+                inputs[inputs.length - 1].focus();
+            }
+        }
+
+        function removeSkill(index) {
+            if (profileData.skills.length > 1) {
+                profileData.skills.splice(index, 1);
+                generateSkillInputs();
+            } else {
+                alert('You must have at least one skill!');
+            }
+        }
+
+        // Collect data from edit fields
+        function collectEditData() {
+            // Basic validation
+            const name = document.getElementById('editName').value.trim();
+            const email = document.getElementById('editEmail').value.trim();
+            
+            if (!name) {
+                alert('Name is required!');
+                document.getElementById('editName').focus();
+                return false;
+            }
+            
+            if (!email || !isValidEmail(email)) {
+                alert('Please enter a valid email address!');
+                document.getElementById('editEmail').focus();
+                return false;
+            }
+
+            // Collect all data
+            profileData.name = name;
+            profileData.role = document.getElementById('editRole').value.trim();
+            profileData.email = email;
+            profileData.phone = document.getElementById('editPhone').value.trim();
+            profileData.location = document.getElementById('editLocation').value.trim();
+            profileData.bio = document.getElementById('editBio').value.trim();
+            profileData.company = document.getElementById('editCompany').value.trim();
+            profileData.experience = document.getElementById('editExperience').value.trim();
+            profileData.github = document.getElementById('editGithub').value.trim();
+            profileData.linkedin = document.getElementById('editLinkedin').value.trim();
+
+            // Collect skills
+            const skillInputs = document.querySelectorAll('[data-skill-index]');
+            profileData.skills = Array.from(skillInputs)
+                .map(input => input.value.trim())
+                .filter(skill => skill !== '');
+
+            return true;
+        }
+
+        // Email validation helper
+        function isValidEmail(email) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return emailRegex.test(email);
+        }
+
+        // Show notification
+        function showNotification(message, type = 'success') {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 1rem 2rem;
+                border-radius: 12px;
+                color: white;
+                font-weight: 600;
+                z-index: 1000;
+                animation: slideIn 0.3s ease-out;
+                box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+            `;
+            
+            if (type === 'success') {
+                notification.style.background = 'linear-gradient(135deg, #00b894, #00a085)';
+                notification.innerHTML = `✅ ${message}`;
+            } else if (type === 'error') {
+                notification.style.background = 'linear-gradient(135deg, #ff6b6b, #ee5a24)';
+                notification.innerHTML = `❌ ${message}`;
+            }
+
+            // Add slide-in animation
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes slideIn {
+                    from { transform: translateX(100%); opacity: 0; }
+                    to { transform: translateX(0); opacity: 1; }
+                }
+            `;
+            document.head.appendChild(style);
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.animation = 'slideIn 0.3s ease-out reverse';
+                setTimeout(() => {
+                    document.body.removeChild(notification);
+                    document.head.removeChild(style);
+                }, 300);
+            }, 3000);
+        }
+
+        // Event listeners
+        document.getElementById('editBtn').addEventListener('click', () => {
+            toggleEditMode(true);
+        });
+
+        document.getElementById('saveBtn').addEventListener('click', () => {
+            if (collectEditData()) {
+                if (saveProfileData()) {
+                    updateDisplayData();
+                    toggleEditMode(false);
+                    showNotification('Profile updated successfully!', 'success');
+                }
+            }
+        });
+
+        document.getElementById('cancelBtn').addEventListener('click', () => {
+            if (confirm('Are you sure you want to cancel? All unsaved changes will be lost.')) {
+                toggleEditMode(false);
+                showNotification('Changes discarded', 'error');
+            }
+        });
+
+       document.getElementById('logoutBtn').addEventListener('click', () => {
+    if (confirm('Are you sure you want to logout? This will clear your saved profile data.')) {
+        // Clear localStorage
+        localStorage.removeItem('hackease_profile');
+        showNotification('Logged out successfully!', 'success');
+        // Redirect to homepage/index
+        window.location.href = '../index.html';
+    }
+});
+
+        // Profile photo upload
+        document.getElementById('photoInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                // Check file size (max 5MB)
+                if (file.size > 5 * 1024 * 1024) {
+                    alert('Please select an image smaller than 5MB');
+                    return;
+                }
+
+                // Check file type
+                if (!file.type.startsWith('image/')) {
+                    alert('Please select a valid image file');
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    profileData.profilePhoto = e.target.result;
+                    const profileImage = document.getElementById('profileImage');
+                    const defaultAvatar = document.getElementById('defaultAvatar');
+                    profileImage.src = e.target.result;
+                    profileImage.classList.remove('hidden');
+                    defaultAvatar.classList.add('hidden');
+                    showNotification('Profile photo updated!', 'success');
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            // Ctrl/Cmd + S to save
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                const saveBtn = document.getElementById('saveBtn');
+                if (!saveBtn.classList.contains('hidden')) {
+                    saveBtn.click();
+                }
+            }
+            
+            // Escape to cancel
+            if (e.key === 'Escape') {
+                const cancelBtn = document.getElementById('cancelBtn');
+                if (!cancelBtn.classList.contains('hidden')) {
+                    cancelBtn.click();
+                }
+            }
+        });
+
+        // Initialize the page
+        document.addEventListener('DOMContentLoaded', function() {
+            loadProfileData();
+            
+            // Add smooth scrolling for better UX
+            document.documentElement.style.scrollBehavior = 'smooth';
+            
+            // Add loading animation
+            document.body.style.opacity = '0';
+            setTimeout(() => {
+                document.body.style.transition = 'opacity 0.5s ease-in';
+                document.body.style.opacity = '1';
+            }, 100);
+        });
+
+        // Add some interactive features
+        document.querySelectorAll('.skill-tag').forEach(tag => {
+            tag.addEventListener('click', function() {
+                this.style.transform = 'scale(1.1)';
+                setTimeout(() => {
+                    this.style.transform = 'scale(1)';
+                }, 200);
+            });
+        });
+
+ // Enhanced auto-save functionality with localStorage
+let autoSaveTimeout;
+function scheduleAutoSave() {
+    clearTimeout(autoSaveTimeout);
+    autoSaveTimeout = setTimeout(() => {
+        // Only auto-save if NOT in edit mode
+        if (!document.getElementById('saveBtn').classList.contains('hidden')) {
+            return;
+        }
+        
+        // Save current data to localStorage
+        try {
+            localStorage.setItem('hackease_profile', JSON.stringify(profileData));
+            console.log('Auto-saved profile data to localStorage');
+        } catch (error) {
+            console.error('Auto-save failed:', error);
+        }
+    }, 30000); // Auto-save every 30 seconds
+}
+
+        // Add event listeners for auto-save
+        document.querySelectorAll('input, textarea').forEach(input => {
+            input.addEventListener('input', scheduleAutoSave);
+        });
+    </script>
+</body>
+</html>

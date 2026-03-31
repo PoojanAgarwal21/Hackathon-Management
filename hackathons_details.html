@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hackwave 2.0 - Hackathon Details</title>
+    <link rel="stylesheet" href="hackathons_details.css" />
+  </head>
+
+  <body>
+    <div class="progress-indicator" id="progressBar"></div>
+
+    <div class="page-wrapper">
+      <!-- Top header and tab menu will go here -->
+      <div class="top-header" id="topHeader">
+        <p></p>
+      </div>
+      <ul class="tab-menu" id="tabMenu">
+        <li data-section="problem">Problem</li>
+        <li data-section="details">Details</li>
+        <li data-section="prizes">Prizes</li>
+      </ul>
+      <div class="main-content">
+        <!-- Left Section -->
+        <div class="left-content" id="detailsContainer">
+          <h1 class="hackathon-title">Loading Hackathon...</h1>
+
+          <section id="problem" class="section-card">
+            <h2>💡 Problem Statement</h2>
+            <div class="inner-card">
+              <p>Loading problem...</p>
+            </div>
+          </section>
+
+          <section id="details" class="section-card">
+            <h2>📋 Event Details</h2>
+            <div class="inner-card">
+              <p>Loading description...</p>
+            </div>
+          </section>
+
+          <section id="prizes" class="section-card">
+            <h2>🏆 Prize Info</h2>
+            <div class="inner-card">
+              <p class="prize-tag">Calculating prizes...</p>
+            </div>
+          </section>
+        </div>
+
+        <!-- Right Side Info Panel -->
+        <div class="right-info" id="rightPanel"></div>
+      </div>
+    </div>
+    <script src="hackathon-details.js"></script>
+    <script>
+      // Progress bar update
+      function updateProgressBar() {
+        const scrollTop = window.scrollY;
+        const docHeight =
+          document.documentElement.scrollHeight - window.innerHeight;
+        const scrollPercent = (scrollTop / docHeight) * 100;
+        document.getElementById("progressBar").style.width =
+          scrollPercent + "%";
+      }
+
+      // Auto-update active tab based on scroll position
+      function updateActiveTab() {
+        const sections = [
+          "problem",
+          "details",
+          "prizes",
+        ];
+        const scrollPosition = window.scrollY + 200;
+
+        sections.forEach((sectionId) => {
+          const section = document.getElementById(sectionId);
+          if (section) {
+            const sectionTop = section.offsetTop;
+            const sectionHeight = section.offsetHeight;
+
+            if (
+              scrollPosition >= sectionTop &&
+              scrollPosition < sectionTop + sectionHeight
+            ) {
+              document.querySelectorAll(".tab-menu li").forEach((tab) => {
+                tab.classList.remove("active");
+              });
+              document
+                .querySelector(`[data-section="${sectionId}"]`)
+                .classList.add("active");
+            }
+          }
+        });
+      }
+
+      // Enhanced registration function
+      function handleGoToRegister() {
+        const params = new URLSearchParams(window.location.search);
+        const id = params.get("id");
+
+        if (!id) {
+          alert("❌ Hackathon ID missing from URL.");
+          return;
+        }
+
+        fetch(`http://localhost:5000/api/hackathon/${id}`)
+          .then((res) => res.json())
+          .then((data) => {
+            localStorage.setItem("selectedHackathon", JSON.stringify(data));
+            window.location.href = "register.html"; // ✅ redirect to registration page
+          })
+          .catch((err) => {
+            console.error("❌ Error fetching hackathon for registration:", err);
+            alert("❌ Failed to load hackathon data.");
+          });
+      }
+
+      // Event listeners
+      window.addEventListener("scroll", () => {
+        updateProgressBar();
+        updateActiveTab();
+      });
+
+      // Initialize page
+      document.addEventListener("DOMContentLoaded", function () {
+        // Set initial active tab
+        document
+          .querySelector('[data-section="problem"]')
+          .classList.add("active");
+        const problemTab = document.querySelector('[data-section="problem"]');
+        if (problemTab) problemTab.classList.add("active");
+
+        // Add staggered animation to cards
+        const cards = document.querySelectorAll(".section-card");
+        cards.forEach((card, index) => {
+          card.style.animationDelay = `${index * 0.1}s`;
+        });
+      });
+
+      // Smooth page load animation
+      window.addEventListener("load", function () {
+        document.body.style.opacity = "1";
+      });
+
+      const params = new URLSearchParams(window.location.search);
+      const hackathonId = params.get("id");
+
+      fetch(`http://localhost:5000/api/hackathon/${hackathonId}`)
+        .then((res) => res.json())
+        .then((hack) => {
+          // Set title and other details
+          document.querySelector(".hackathon-title").textContent = hack.title;
+          document.querySelector(
+            ".top-header p"
+          ).innerHTML = `${hack.location}`;
+
+          // Prize Calculation
+          const totalPrize =
+            Number(hack.prize1 || 0) +
+            Number(hack.prize2 || 0) +
+            Number(hack.prize3 || 0);
+          document.querySelector(
+            ".prize-tag"
+          ).textContent = `🏆 Prizes Worth ₹${totalPrize}`;
+
+          document.querySelector(
+            "#problem .inner-card p"
+          ).innerHTML = `<strong>Challenge:</strong> ${hack.problem}`;
+          document.querySelector(
+            "#details .inner-card p"
+          ).innerHTML = `<strong>Overview:</strong> ${hack.description}`;
+
+          // // Organizer info (not shown in UI anymore if you're replacing right panel, but kept for completeness)
+          // document.querySelector(".organizer-name").textContent =
+          //   hack.organizerName;
+          // document.querySelector(".organizer-email").textContent =
+          //   hack.organizerEmail;
+
+          // 🟡 Fetch participant registrations after hackathon details are loaded
+          fetch(
+            `http://localhost:5000/api/registration/${hack._id}/registrations`
+          )
+            .then((res) => res.json())
+            .then((registrations) => {
+              const teamCount = registrations.length;
+              // Check registration status
+            const now = new Date();
+            const regStart = new Date(hack.regStart);
+            const regEnd = new Date(hack.regEnd);
+            
+            let registerButton = '';
+            if (now < regStart) {
+              registerButton = `<button class="register-btn disabled" disabled>Registration Opens ${regStart.toLocaleDateString()}</button>`;
+            } else if (now > regEnd) {
+              registerButton = `<button class="register-btn disabled" disabled>Registration Closed</button>`;
+            } else {
+              registerButton = `<button class="register-btn" onclick="handleGoToRegister()">Register Now</button>`;
+            }
+            
+            document.getElementById("rightPanel").innerHTML = `
+          <div class="right-card fade-in-up">
+            <p class="price-label">Free</p>
+            <p class="organizer-name">${hack?.organizerName || "Organizer"}</p>
+            <p class="organizer-email">${
+              hack?.organizerEmail || "Not provided"
+            }</p>
+            ${registerButton}
+            <div class="stats-row">
+              <div class="stat-box">
+                <p class="stat-icon">👥</p>
+                <p class="stat-title">Registered Teams</p>
+                <p class="stat-value">${teamCount}</p>
+              </div>
+              <div class="stat-box">
+                <p class="stat-icon">👨‍👩‍👧‍👦</p>
+                <p class="stat-title">Team Size</p>
+                <p class="stat-value">1 - ${hack?.maxTeamSize || 5} Members</p>
+              </div>
+              <div class="stat-box">
+                <p class="stat-icon">⏰</p>
+                <p class="stat-title">Duration</p>
+                <p class="stat-value">${hack.duration || "N/A"}</p>
+              </div>
+            </div>
+          </div>
+        `;
+            })
+            .catch((err) => {
+              console.error("Failed to load registrations:", err);
+            });
+        })
+        .catch((err) => {
+          console.error("Failed to load hackathon details:", err);
+        });
+    </script>
+  </body>
+</html>

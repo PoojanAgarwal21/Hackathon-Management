@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>My Applications - HackEase</title>
+    <link rel="stylesheet" href="participant.css" />
+  </head>
+
+  <body>
+    <!-- Navbar -->
+    <nav class="navbar">
+      <div class="nav-container">
+        <a href="participant.html" class="logo">HackEase</a>
+        <ul class="nav-links">
+          <li><a href="participant.html" class="active">🏠 Home</a></li>
+          <li><a href="application_participant.html">📄 My Applications</a></li>
+          <li><a href="result_participant.html">🏆 Result</a></li>
+          <li><a href="resources_participant.html">📘 Resources</a></li>
+          <li><a href="query_participant.html">❓ Query</a></li>
+          <li>
+            <a href="profile.html" class="profile-btn active">👤 Profile</a>
+          </li>
+        </ul>
+        <ul id="hackathonList"></ul>
+        <div class="mobile-nav">
+          <button class="mobile-nav-toggle" onclick="toggleMobileNav()">
+            ☰
+          </button>
+          <div class="mobile-nav-menu" id="mobileMenu">
+            <a href="participant.html" class="active">🏠 Home</a>
+            <a href="application_participant.html">📄 My Applications</a>
+            <a href="result_participant.html">🏆 Result</a>
+            <a href="resources_participant.html">📘 Resources</a>
+            <a href="query_participant.html">❓ Query</a>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="main-content">
+      <!-- My Applications Section -->
+      <div id="applications" class="page-section active">
+        <h2>📄 My Applications</h2>
+        <p>Here are your hackathon registrations:</p>
+          <div id="applicationContainer" class="applications-wrapper"></div>
+      </div>
+    </div>
+
+    <!-- Profile Edit Modal -->
+    <div class="profile-edit-overlay" id="profileEditModal">
+      <div class="profile-edit-modal">
+        <div class="profile-edit-header">
+          <h3>✏️ Edit Profile</h3>
+        </div>
+        <div class="profile-edit-body">
+          <form id="profileEditForm">
+            <div class="profile-form-group">
+              <label for="editProfileName">👤 Full Name</label>
+              <input type="text" id="editProfileName" required />
+            </div>
+            <div class="profile-form-group">
+              <label for="editProfileEmail">📧 Email Address</label>
+              <input type="email" id="editProfileEmail" required />
+            </div>
+            <div class="profile-form-group">
+              <label for="editProfilePhone">📱 Phone Number</label>
+              <input type="tel" id="editProfilePhone" required />
+            </div>
+          </form>
+        </div>
+        <div class="profile-edit-footer">
+          <button class="btn-save-profile" onclick="saveProfile()">
+            💾 Save Changes
+          </button>
+          <button class="btn-cancel-profile" onclick="closeProfileEdit()">
+            ❌ Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      function registerTeam() {
+        const team = {
+          teamName: document.getElementById("teamName").value,
+          members: document.getElementById("members").value.split(","),
+          leaderName: document.getElementById("leaderName").value,
+          email: document.getElementById("email").value,
+          phone: document.getElementById("phone").value,
+        };
+
+        fetch("http://localhost:5000/api/form/my-applications", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(team),
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            alert("Registered Successfully!");
+            console.log(data);
+          })
+          .catch((err) => alert("Error: " + err.message));
+      }
+
+    function renderMyApplications() {
+      const container = document.getElementById("applicationContainer");
+      const token = localStorage.getItem("token");
+      let userEmail = null;
+      try {
+        // Decode JWT to get user email
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        userEmail = payload.email;
+      } catch (e) {
+        userEmail = null;
+      }
+
+      // Fetch only registrations for the current user
+      fetch(`http://localhost:5000/api/registration/participant/${userEmail}`)
+        .then(res => res.json())
+        .then(data => {
+          if (!data || data.length === 0) {
+            container.innerHTML = "<p>No registrations found.</p>";
+            return;
+          }
+
+          container.innerHTML = ""; // Clear old content
+
+          data.forEach(reg => {
+            const hackathon = reg.hackathonId; // Populated hackathon object
+            if (!hackathon || !hackathon._id) return;
+            const hackathonId = hackathon._id;
+
+            const card = document.createElement("div");
+            card.className = "application-card";
+
+            card.innerHTML = `
+              <h3>📌 ${reg.teamName}</h3>
+              <p><strong>Leader:</strong> ${reg.leaderName}</p>
+              <p><strong>Email:</strong> ${reg.leaderEmail}</p>
+              <p><strong>Phone:</strong> ${reg.mobile}</p>
+              <p><strong>Institute:</strong> ${reg.institute}</p>
+              <p><strong>Registered At:</strong> ${new Date(reg.registeredAt).toLocaleString()}</p>
+              <h4>👥 Team Members:</h4>
+              <ul>
+                ${reg.teamMembers.map(m => `<li>${m.name} (${m.email}, ${m.gender})</li>`).join("")}
+              </ul>
+              <div class="rounds-wrapper" id="rounds-${hackathonId}">⏳ Loading rounds...</div>
+            `;
+
+            container.appendChild(card);
+
+            // Fetch hackathon rounds and team submission status
+            Promise.all([
+              Promise.resolve(hackathon), // Already have hackathon object
+              Promise.resolve(reg), // This is the team object
+              fetch(`http://localhost:5000/api/submissions/status/${hackathonId}`, {
+                headers: {
+                  Authorization: "Bearer " + localStorage.getItem("token"),
+                }
+              }).then(res => {
+                if (res.status === 404) return [];
+                if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+                return res.json();
+              }).catch(() => [])
+            ])
+            .then(([hackathon, team, submissions]) => {
+              const roundsDiv = document.getElementById(`rounds-${hackathonId}`);
+              roundsDiv.innerHTML = "<h4>📋 Rounds</h4>";
+
+              if (!team) return; // Defensive: should never happen
+
+              const currentRound = team.currentRound || 1;
+              const now = new Date();
+
+              hackathon.rounds.forEach((round, index) => {
+                const roundNum = index + 1;
+                const roundStart = new Date(round.start);
+                const roundEnd = new Date(round.end);
+                const isPast = roundEnd < now;
+                const isActive = roundStart <= now && roundEnd >= now;
+                // Check if already submitted
+                const submission = submissions.find(s => s.roundNumber === roundNum);
+                const hasSubmitted = submission ? true : false;
+                // Check if selected in previous round (for round > 1)
+                let eligibleForThisRound = true;
+                if (roundNum > 1) {
+                  const prevSubmission = submissions.find(s => s.roundNumber === roundNum - 1);
+                  eligibleForThisRound = prevSubmission && prevSubmission.selectedForNext;
+                }
+                let statusClass = "status-locked";
+                let statusText = "🔒 Locked";
+                let actionButton = "";
+                let selectionStatus = "";
+                if (hasSubmitted) {
+                  statusClass = "status-submitted";
+                  statusText = "✅ Submitted";
+                  actionButton = `<a href=\"#\" onclick=\"viewSubmission('${hackathonId}', ${roundNum})\">View Submission</a>`;
+                  // Show selection status if evaluated and not last round
+                  if (submission.evaluated) {
+                    if (roundNum < hackathon.rounds.length) {
+                      if (submission.selectedForNext === true) {
+                        selectionStatus = `<span class='status-badge selected'>Selected for Next Round</span>`;
+                      } else if (submission.selectedForNext === false) {
+                        selectionStatus = `<span class='status-badge rejected'>Not Selected for Next Round</span>`;
+                      } else {
+                        selectionStatus = '';
+                      }
+                    } else {
+                      // Last round: show a neutral/final status
+                      selectionStatus = `<span class='status-badge finalist'>Final Round Completed</span>`;
+                    }
+                  } else {
+                    selectionStatus = '';
+                  }
+                } else if (eligibleForThisRound && isActive) {
+                  statusClass = "status-open";
+                  statusText = "🟢 Open";
+                  actionButton = `<a href=\"#\" onclick=\"openSubmissionForm('${hackathonId}', ${roundNum})\">Submit Work</a>`;
+                } else if (!eligibleForThisRound && roundNum > 1) {
+                  statusClass = "status-locked";
+                  statusText = "❌ Not Selected in Previous Round";
+                } else if (isPast) {
+                  statusClass = "status-past";
+                  statusText = "⏰ Closed";
+                } else if (eligibleForThisRound && !isActive) {
+                  statusClass = "status-open";
+                  statusText = "⏳ Coming Soon";
+                }
+                roundsDiv.innerHTML += `
+                  <div class=\"round-line\">
+                    <div>
+                      <b>Round ${roundNum}: ${round.name}</b>
+                      <div class=\"round-info\">
+                        <span><strong>Start:</strong> ${roundStart.toLocaleString()}</span>
+                        <span><strong>End:</strong> ${roundEnd.toLocaleString()}</span>
+                      </div>
+                      ${round.description ? `<p style=\"margin: 8px 0; font-size: 0.9rem; color: #6c757d;\">${round.description}</p>` : ''}
+                      ${round.guidelines ? `<p style=\"margin: 8px 0; font-size: 0.9rem; color: #495057;\"><strong>Guidelines:</strong> ${round.guidelines}</p>` : ''}
+                      ${selectionStatus}
+                    </div>
+                    <div style=\"text-align: right;\">
+                      <span class=\"round-status ${statusClass}\">${statusText}</span>
+                      ${actionButton ? `<br><br>${actionButton}` : ''}
+                    </div>
+                  </div>
+                `;
+              });
+            })
+            .catch(err => {
+              console.error("❌ Error loading rounds:", err);
+              const roundsDiv = document.getElementById(`rounds-${hackathonId}`);
+              if (roundsDiv) {
+                roundsDiv.innerHTML = "<p>⚠️ Could not load round info.</p>";
+              }
+            });
+          });
+        })
+        .catch(err => {
+          console.error("❌ Error loading applications:", err);
+          container.innerHTML = "<p>❌ Failed to load applications.</p>";
+        });
+    }
+
+
+      function simulateOrganizerActions() {
+        setTimeout(() => {
+          const applications =
+            JSON.parse(localStorage.getItem("myApplications")) || [];
+          if (applications.length > 0 && applications[0].additionalIdea) {
+            // Simulate first additional idea being accepted
+            applications[0].additionalIdea.status = "Accepted";
+            localStorage.setItem(
+              "myApplications",
+              JSON.stringify(applications)
+            );
+            renderMyApplications();
+            console.log("Demo: First additional idea accepted");
+          }
+        }, 5000);
+
+        setTimeout(() => {
+          const applications =
+            JSON.parse(localStorage.getItem("myApplications")) || [];
+          if (applications.length > 1 && applications[1].additionalIdea) {
+            // Simulate second additional idea being rejected
+            applications[1].additionalIdea.status = "Rejected";
+            localStorage.setItem(
+              "myApplications",
+              JSON.stringify(applications)
+            );
+            renderMyApplications();
+            console.log("Demo: Second additional idea rejected");
+          }
+        }, 8000);
+      }
+
+      // NAVBAR JAVASCRIPT
+      function toggleMobileNav() {
+        const menu = document.getElementById("mobileMenu");
+        menu.classList.toggle("active");
+      }
+
+      function toggleProfileDropdown() {
+        const dropdown = document.getElementById("profileDropdown");
+        dropdown.classList.toggle("show");
+      }
+
+      function logout() {
+        if (confirm("Are you sure you want to logout?")) {
+          // Simulate logout - redirect to index.html
+          window.location.href = "../index.html";
+        }
+      }
+
+      // Profile management functions
+      function editProfile() {
+        // Get current profile values
+        const currentName = document.getElementById("profileName").textContent;
+        const currentEmail =
+          document.getElementById("profileEmail").textContent;
+        const currentPhone =
+          document.getElementById("profilePhone").textContent;
+        // Populate the edit form
+        document.getElementById("editProfileName").value = currentName;
+        document.getElementById("editProfileEmail").value = currentEmail;
+        document.getElementById("editProfilePhone").value = currentPhone;
+        // Show the modal
+        document.getElementById("profileEditModal").style.display = "flex";
+        // Close the profile dropdown
+        document.getElementById("profileDropdown").classList.remove("show");
+      }
+
+      function saveProfile() {
+        // Get new values
+        const newName = document.getElementById("editProfileName").value.trim();
+        const newEmail = document
+          .getElementById("editProfileEmail")
+          .value.trim();
+        const newPhone = document
+          .getElementById("editProfilePhone")
+          .value.trim();
+        // Validate inputs
+        if (!newName || !newEmail || !newPhone) {
+          alert("Please fill in all fields");
+          return;
+        }
+        // Email validation
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(newEmail)) {
+          alert("Please enter a valid email address");
+          return;
+        }
+        // Phone validation (basic)
+        const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
+        if (!phoneRegex.test(newPhone.replace(/[\s\-\(\)]/g, ""))) {
+          alert("Please enter a valid phone number");
+          return;
+        }
+        // Update profile display
+        document.getElementById("profileName").textContent = newName;
+        document.getElementById("profileEmail").textContent = newEmail;
+        document.getElementById("profilePhone").textContent = newPhone;
+        // Close modal
+        closeProfileEdit();
+        // Show success message
+        alert("Profile updated successfully! 🎉");
+      }
+
+      function closeProfileEdit() {
+        document.getElementById("profileEditModal").style.display = "none";
+      }
+
+      // Close modal when clicking outside
+      document.addEventListener("click", function (e) {
+        const modal = document.getElementById("profileEditModal");
+        if (e.target === modal) {
+          closeProfileEdit();
+        }
+        
+        // Close submission modal when clicking outside
+        const submissionModal = document.getElementById("enhancedSubmissionModal");
+        if (e.target === submissionModal) {
+          closeSubmissionModal();
+        }
+      });
+
+      // Close modal with Escape key
+      document.addEventListener("keydown", function (e) {
+        if (e.key === "Escape") {
+          closeProfileEdit();
+          closeSubmissionModal();
+        }
+      });
+
+      // Check if user is authenticated
+      function checkAuth() {
+        const token = localStorage.getItem("token");
+        console.log("🔑 Token found:", token ? "Yes" : "No");
+        if (!token) {
+          alert("❌ Please login first");
+          window.location.href = "../login1.html";
+          return false;
+        }
+        return true;
+      }
+
+      // Call this function on page load for demo
+      document.addEventListener("DOMContentLoaded", function () {
+        if (checkAuth()) {
+          renderMyApplications();
+          simulateOrganizerActions(); // Remove this in production
+        }
+      });
+
+    let currentHackathonId = null;
+let currentRoundNumber = null;
+let currentRoundData = null;
+
+function openSubmissionForm(hackathonId, roundNum) {
+  currentHackathonId = hackathonId;
+  currentRoundNumber = roundNum;
+  
+  // Fetch round details to display in modal
+  fetch(`http://localhost:5000/api/hackathon/${hackathonId}`)
+    .then(res => res.json())
+    .then(hackathon => {
+      const round = hackathon.rounds[roundNum - 1];
+      currentRoundData = round;
+      
+      // Populate round details in modal
+      const roundDetailsDiv = document.getElementById("roundDetails");
+      roundDetailsDiv.innerHTML = `
+        <h4>📋 Round ${roundNum} Details</h4>
+        <div class="round-info">
+          <span><strong>Name:</strong> ${round.name}</span>
+          <span><strong>Start:</strong> ${new Date(round.start).toLocaleString()}</span>
+          <span><strong>End:</strong> ${new Date(round.end).toLocaleString()}</span>
+          <span><strong>Status:</strong> <span class="round-status status-open">🟢 Open for Submission</span></span>
+        </div>
+        ${round.description ? `<p><strong>Description:</strong> ${round.description}</p>` : ''}
+        ${round.guidelines ? `<p><strong>Guidelines:</strong> ${round.guidelines}</p>` : ''}
+        ${round.link ? `<p><strong>Reference Link:</strong> <a href="${round.link}" target="_blank">${round.link}</a></p>` : ''}
+      `;
+      
+      // Clear previous form data
+      document.getElementById("submissionLink").value = "";
+      document.getElementById("submissionNotes").value = "";
+      
+      // Show the enhanced modal
+      document.getElementById("enhancedSubmissionModal").style.display = "block";
+    })
+    .catch(err => {
+      console.error("Error fetching round details:", err);
+      alert("❌ Could not load round details");
+    });
+}
+
+function closeSubmissionModal() {
+  document.getElementById("enhancedSubmissionModal").style.display = "none";
+  currentHackathonId = null;
+  currentRoundNumber = null;
+  currentRoundData = null;
+}
+
+function submitRoundWork() {
+  const link = document.getElementById("submissionLink").value.trim();
+  const notes = document.getElementById("submissionNotes").value.trim();
+  
+  if (!link) {
+    alert("❌ Please enter a project link");
+    return;
+  }
+  
+  // Basic URL validation
+  try {
+    new URL(link);
+  } catch {
+    alert("❌ Please enter a valid URL");
+    return;
+  }
+
+  // Show loading state
+  const submitBtn = document.querySelector('.btn-submit');
+  const originalText = submitBtn.textContent;
+  submitBtn.textContent = "⏳ Submitting...";
+  submitBtn.disabled = true;
+
+  fetch("http://localhost:5000/api/submissions/round", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: "Bearer " + localStorage.getItem("token"),
+    },
+    body: JSON.stringify({
+      hackathonId: currentHackathonId,
+      roundNumber: currentRoundNumber,
+      submissionLink: link,
+      notes: notes || undefined
+    }),
+  })
+    .then(res => res.json())
+    .then(data => {
+      if (data.message) {
+        alert("✅ " + data.message);
+        closeSubmissionModal();
+        // Refresh the applications to show updated status
+        renderMyApplications();
+      } else {
+        alert("❌ " + (data.error || "Submission failed"));
+      }
+    })
+    .catch(err => {
+      console.error(err);
+      alert("❌ Submission failed: " + err.message);
+    })
+    .finally(() => {
+      // Reset button state
+      submitBtn.textContent = originalText;
+      submitBtn.disabled = false;
+    });
+}
+
+function viewSubmission(hackathonId, roundNum) {
+  // Fetch submission details
+  fetch(`http://localhost:5000/api/submissions/status/${hackathonId}`, {
+    headers: {
+      Authorization: "Bearer " + localStorage.getItem("token"),
+    }
+  })
+    .then(res => res.json())
+    .then(submissions => {
+      const submission = submissions.find(s => s.roundNumber === roundNum);
+      if (submission) {
+        alert(`📤 Round ${roundNum} Submission\n\nLink: ${submission.submissionLink}\nSubmitted: ${new Date(submission.submittedAt).toLocaleString()}\nStatus: ${submission.evaluated ? 'Evaluated' : 'Pending Evaluation'}`);
+      } else {
+        alert("❌ Submission not found");
+      }
+    })
+    .catch(err => {
+      console.error(err);
+      alert("❌ Could not fetch submission details");
+    });
+}
+
+function submitRoundForm(event, hackathonId, roundNum) {
+  event.preventDefault();
+  const form = event.target;
+  const link = form.submissionLink.value;
+  fetch("http://localhost:5000/api/submissions/round", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: "Bearer " + localStorage.getItem("token"),
+    },
+    body: JSON.stringify({
+      hackathonId,
+      roundNumber: roundNum,
+      submissionLink: link,
+    }),
+  })
+    .then(res => res.json())
+    .then(data => {
+      alert(data.message || "Submitted!");
+      // Optionally, refresh the applications/rounds UI
+      renderMyApplications();
+    })
+    .catch(err => {
+      alert("Submission failed: " + err.message);
+    });
+}
+
+function registerForHackathon(event, hackathonId) {
+  event.preventDefault();
+  const form = event.target;
+  const teamName = form.teamName.value;
+  const leaderName = form.leaderName.value;
+  const leaderEmail = form.leaderEmail.value;
+  const mobile = form.mobile.value;
+  const gender = form.gender.value;
+  const institute = form.institute.value;
+  // Parse team members from textarea (one per line: name,email,gender)
+  const teamMembers = form.teamMembers.value
+    .split('\n')
+    .map(line => {
+      const [name, email, gender] = line.split(',').map(s => s.trim());
+      return { name, email, gender };
+    });
+
+  fetch("http://localhost:5000/api/registration/register", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: "Bearer " + localStorage.getItem("token"),
+    },
+    body: JSON.stringify({
+      hackathonId,
+      teamName,
+      leaderName,
+      leaderEmail,
+      mobile,
+      gender,
+      institute,
+      teamMembers,
+    }),
+  })
+    .then(res => res.json())
+    .then(data => {
+      alert(data.message || "Registered!");
+      renderMyApplications();
+    })
+    .catch(err => {
+      alert("Registration failed: " + err.message);
+    });
+}
+
+
+    </script>
+   <!-- Enhanced Round Submission Modal -->
+<div id="enhancedSubmissionModal" class="submission-modal-overlay">
+  <div class="submission-modal">
+    <div class="submission-modal-header">
+      <h3>📤 Submit Round Work</h3>
+      <button class="close-btn" onclick="closeSubmissionModal()">×</button>
+    </div>
+    <div class="submission-modal-body">
+      <div id="roundDetails" class="round-details">
+        <!-- Round details will be populated here -->
+      </div>
+      <form id="submissionForm" class="submission-form">
+        <div class="form-group">
+          <label for="submissionLink">🔗 Project Link</label>
+          <input 
+            type="url" 
+            id="submissionLink" 
+            placeholder="Enter your project link (GitHub, Google Drive, etc.)" 
+            required 
+          />
+          <small>Please provide a valid link to your project files, repository, or demo</small>
+        </div>
+        <div class="form-group">
+          <label for="submissionNotes">📝 Additional Notes (Optional)</label>
+          <textarea 
+            id="submissionNotes" 
+            placeholder="Any additional information about your submission..."
+            rows="3"
+          ></textarea>
+        </div>
+      </form>
+    </div>
+    <div class="submission-modal-footer">
+      <button class="btn-cancel" onclick="closeSubmissionModal()">❌ Cancel</button>
+      <button class="btn-submit" onclick="submitRoundWork()">📤 Submit Work</button>
+    </div>
+  </div>
+</div>
+
+<style>
+/* Enhanced Modal Styles */
+.submission-modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 1000;
+  backdrop-filter: blur(5px);
+}
+
+.submission-modal {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  width: 90%;
+  max-width: 600px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.submission-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 25px;
+  border-bottom: 1px solid #e0e0e0;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 12px 12px 0 0;
+}
+
+.submission-modal-header h3 {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background 0.3s;
+}
+
+.close-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.submission-modal-body {
+  padding: 25px;
+}
+
+.round-details {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 15px;
+  margin-bottom: 20px;
+}
+
+.round-details h4 {
+  margin: 0 0 10px 0;
+  color: #495057;
+  font-size: 1.1rem;
+}
+
+.round-info {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.round-info span {
+  font-size: 0.9rem;
+  color: #6c757d;
+}
+
+.round-info strong {
+  color: #495057;
+}
+
+.submission-form {
+  margin-top: 20px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #495057;
+}
+
+.form-group input,
+.form-group textarea {
+  width: 100%;
+  padding: 12px;
+  border: 2px solid #e9ecef;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: border-color 0.3s;
+  box-sizing: border-box;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.form-group small {
+  display: block;
+  margin-top: 5px;
+  color: #6c757d;
+  font-size: 0.85rem;
+}
+
+.submission-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 20px 25px;
+  border-top: 1px solid #e0e0e0;
+  background: #f8f9fa;
+  border-radius: 0 0 12px 12px;
+}
+
+.btn-cancel,
+.btn-submit {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-cancel {
+  background: #6c757d;
+  color: white;
+}
+
+.btn-cancel:hover {
+  background: #5a6268;
+}
+
+.btn-submit {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.btn-submit:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+}
+
+/* Enhanced Round Display */
+.rounds-wrapper {
+  margin-top: 15px;
+}
+
+.rounds-wrapper h4 {
+  color: #495057;
+  margin-bottom: 10px;
+  font-size: 1.1rem;
+}
+
+.round-line {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.round-line b {
+  color: #495057;
+}
+
+.round-line a {
+  color: #667eea;
+  text-decoration: none;
+  font-weight: 600;
+  padding: 5px 12px;
+  background: rgba(102, 126, 234, 0.1);
+  border-radius: 4px;
+  transition: all 0.3s;
+}
+
+.round-line a:hover {
+  background: rgba(102, 126, 234, 0.2);
+  transform: translateY(-1px);
+}
+
+.round-status {
+  font-size: 0.9rem;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.status-locked {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.status-open {
+  background: #d1ecf1;
+  color: #0c5460;
+}
+
+.status-submitted {
+  background: #d4edda;
+  color: #155724;
+}
+
+.status-past {
+  background: #e2e3e5;
+  color: #383d41;
+}
+</style>
+
+  </body>
+</html>
